@@ -1,30 +1,53 @@
+plugins {
+    id "org.jetbrains.kotlin.jvm" version "1.2.0"
+    id "jaci.openrio.gradle.GradleRIO" version "2017.11.17"
+}
+
 group 'Technomancers'
 version '1.0-SNAPSHOT'
 
-buildscript {
-    ext.kotlin_version = '1.1.4-3'
+def TEAM = 1758
+def ROBOT_CLASS = "edu.frc.technomancers.robot.Robot"
 
-    repositories {
-        mavenCentral()
+// Define my targets (RoboRIO) and artifacts (deployable files)
+// This is added by GradleRIO's backing project EmbeddedTools.
+deploy {
+    targets {
+        target("roborio", jaci.openrio.gradle.frc.RoboRIO) {
+            team = TEAM
+        }
     }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
+    artifacts {
+        // We still use FRCJavaArtifact since kotlin does respond as a Java build.
+        artifact('frcKotlin', jaci.openrio.gradle.frc.FRCJavaArtifact) {
+            targets << "roborio"
+            jar = 'jar'
+        }
     }
 }
-
-apply plugin: 'kotlin'
 
 repositories {
     mavenCentral()
 }
 
+// Defining my dependencies. In this case, WPILib (+ friends), CTRE Toolsuite (Talon SRX)
+// and NavX.
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib-jre8:$kotlin_version"
+    compile wpilib()
+    compile ctre()
+
+    // We need to add the Kotlin stdlib in order to use most Kotlin language features.
+    compile "org.jetbrains.kotlin:kotlin-stdlib"
 }
 
-compileKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+// Setting up my Jar File. In this case, adding all libraries into the main jar ('fat jar')
+// in order to make them all available at runtime. Also adding the manifest so WPILib
+// knows where to look for our Robot Class.
+jar {
+    from configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
+    manifest jaci.openrio.gradle.GradleRIOPlugin.javaManifest(ROBOT_CLASS)
 }
-compileTestKotlin {
-    kotlinOptions.jvmTarget = "1.8"
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '4.2.1'
 }
